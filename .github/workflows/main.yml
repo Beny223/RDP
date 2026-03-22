@@ -8,22 +8,18 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 3600
 
-    env:
-      RDP_USERNAME: Beny
-      RDP_PASSWORD: Basma
-
     steps:
       - name: Configure Core RDP Settings
         shell: powershell
         run: |
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' `
-                             -Name "fDenyTSConnections" -Value 0 -Force
+            -Name "fDenyTSConnections" -Value 0 -Force
 
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
-                             -Name "UserAuthentication" -Value 0 -Force
+            -Name "UserAuthentication" -Value 0 -Force
 
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
-                             -Name "SecurityLayer" -Value 0 -Force
+            -Name "SecurityLayer" -Value 0 -Force
 
           netsh advfirewall firewall delete rule name="RDP-Tailscale" | Out-Null
           netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
@@ -33,8 +29,8 @@ jobs:
       - name: Create or Update RDP User
         shell: powershell
         run: |
-          $username = $env:RDP_USERNAME
-          $password = $env:RDP_PASSWORD
+          $username = "RDP"
+          $password = "Basma"
           $securePass = ConvertTo-SecureString $password -AsPlainText -Force
 
           $existingUser = Get-LocalUser -Name $username -ErrorAction SilentlyContinue
@@ -47,8 +43,6 @@ jobs:
 
           Add-LocalGroupMember -Group "Administrators" -Member $username -ErrorAction SilentlyContinue
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member $username -ErrorAction SilentlyContinue
-
-          "RDP_CREDS=User: $username | Password: $password" >> $env:GITHUB_ENV
 
       - name: Install Tailscale
         shell: powershell
@@ -74,32 +68,32 @@ jobs:
           }
 
           if (-not $tsIP) {
-              Write-Error "Tailscale IP not assigned. Exiting."
+              Write-Error "Tailscale IP not assigned"
               exit 1
           }
 
-          "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
+          echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
       - name: Verify RDP Accessibility
         shell: powershell
         run: |
           Write-Host "Tailscale IP: $env:TAILSCALE_IP"
 
-          $testResult = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389
-          if (-not $testResult.TcpTestSucceeded) {
-              Write-Error "TCP connection to RDP port 3389 failed"
+          $test = Test-NetConnection -ComputerName $env:TAILSCALE_IP -Port 3389
+          if (-not $test.TcpTestSucceeded) {
+              Write-Error "RDP no accesible"
               exit 1
           }
 
-          Write-Host "TCP connectivity successful!"
+          Write-Host "RDP OK"
 
       - name: Maintain Connection
         shell: powershell
         run: |
           Write-Host "`n=== RDP ACCESS ==="
           Write-Host "Address: $env:TAILSCALE_IP"
-          Write-Host "Username: $env:RDP_USERNAME"
-          Write-Host "Password: $env:RDP_PASSWORD"
+          Write-Host "Username: RDP"
+          Write-Host "Password: Basma"
           Write-Host "==================`n"
 
           while ($true) {
